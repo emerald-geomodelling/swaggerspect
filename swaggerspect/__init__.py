@@ -36,9 +36,16 @@ def make_type_schema(*typenames):
         if typename is None:
             continue
         if not isinstance(typename, str):
+            args = typing.get_args(typename)
             typename = _get_name(typename)
-        return {"type": typemap.get(typename, "object"),
-                "x-python-type": typename}
+        schema = {
+            "type": typemap.get(typename, "object"),
+            "x-python-type": typename,
+            #"x-python-orig": repr(orig)
+        }
+        if schema["type"] == "array" and args:
+            schema["items"] = make_type_schema(args[0])
+        return schema
     return {}
 
 def make_value_schema(*values):
@@ -132,7 +139,7 @@ def get_function_api_parameters_inspect(fn):
     return [remove_empty({"name": k,
                           "in": "query",
                           "schema": merge(
-                              make_type_schema(typeof(v.default), v.annotation),
+                              make_type_schema(v.annotation, typeof(v.default)),
                               make_value_schema(v.default))})
              for k, v in inspect.signature(fn).parameters.items()]
 

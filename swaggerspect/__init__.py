@@ -14,7 +14,13 @@ typemap = {
     'builtins.float': 'number',
     'builtins.bool': 'boolean',
     'builtins.list': 'array',
-    'builtins.tuple': 'array'
+    'tuple': 'array',
+    'str': 'string',
+    'int': 'integer',
+    'float': 'number',
+    'bool': 'boolean',
+    'list': 'array',
+    'tuple': 'array'
 }
 
 def typeof(v):
@@ -224,25 +230,27 @@ def swagger_to_json_schema(api, multi = True):
     or if multi is True (the default), a list of function calls each
     serialized as above.
     """
-    schema = {"type": "object",
-            "description": api["info"]["description"],
-            "maxProperties": 1,
-            "properties": {
-                step["operationId"]: {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        parameter["name"]: merge(
-                            parameter.get("schema", {}),
-                            remove_empty({"description": parameter.get("description"),
-                             "default": parameter.get("default")
-                            }))
-                        for parameter in step["parameters"]
-                    }
+    schema = {
+        "type": "object",
+        "description": api["info"]["description"],
+        "maxProperties": 1,
+        "defaultProperties": [],
+        "properties": {
+            step["operationId"]: {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    parameter["name"]: merge(
+                        parameter.get("schema", {}),
+                        remove_empty({"description": parameter.get("description"),
+                                      "default": parameter.get("default")
+                        }))
+                    for parameter in step["parameters"]
                 }
-                for step in [path["get"] for path in api["paths"].values()]
             }
-           }
+            for step in [path["get"] for path in api["paths"].values()]
+        }
+    }
     if multi:
         schema = {"type": "array", "items": schema}
     return schema

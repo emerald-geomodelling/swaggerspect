@@ -17,15 +17,19 @@ typemap = {
     'builtins.tuple': 'array'
 }
 
+def typeof(v):
+    if v is None: return None
+    if v is inspect._empty: return None
+    return type(v)
+
 def make_type_schema(*typenames):
     for typename in typenames:
+        orig = typename
         if typename is inspect._empty:
             continue
         if typename is None:
             continue
         if not isinstance(typename, str):
-            if not isinstance(typename, type):
-                typename = type(typename)
             typename = _get_name(typename)
         return {"type": typemap.get(typename, "object"),
                 "x-python-type": typename}
@@ -94,7 +98,7 @@ def get_class_api_parameters_comments(cls):
     return [{"name": n, "in": "query", "description": v} for n, v in _get_class_property_comments(cls).items()]
 
 def get_class_api_parameters_inspect(cls):
-    return [{"name": n, "in": "query", "schema": {} if v is None else merge(make_type_schema(v), make_value_schema(v))}
+    return [{"name": n, "in": "query", "schema": {} if v is None else merge(make_type_schema(typeof(v)), make_value_schema(v))}
             for n, v in inspect.getmembers(cls)
             if (not n.startswith('__')
                 and not inspect.ismethod(v)
@@ -122,7 +126,7 @@ def get_function_api_parameters_inspect(fn):
     return [remove_empty({"name": k,
                           "in": "query",
                           "schema": merge(
-                              make_type_schema(v.default, v.annotation),
+                              make_type_schema(typeof(v.default), v.annotation),
                               make_value_schema(v.default))})
              for k, v in inspect.signature(fn).parameters.items()]
 
@@ -160,6 +164,8 @@ def get_function_api(fn):
                                "schema": make_type_schema(returntype)})}}}}
 
 def get_api(obj):
+    """Generate a swagger specification fragment for a single function
+    call or class instantiation."""
     if type(obj) is type:
         return get_class_api(obj)
     elif inspect.isfunction(obj):
@@ -206,4 +212,37 @@ def get_apis_module(module):
     return docs
 
 def get_apis(objs):
+    """Generates a swagger specification for module or entry point group."""
     return merge(get_apis_module(objs), get_apis_entrypoints(objs))
+
+def swagger_to_json_schema(api, multi = True):
+    """Converts a swagger specification into a JSON schema for either
+    a single function call serialized as
+
+    {"function.name": {"argname1": "value1", ... "argnameN": "valueN"}}
+
+    or if multi is True (the default), a list of function calls each
+    serialized as above.
+    """
+    schema = {"type": "object",
+            "description": api["info"]["description"],
+            "maxProperties": 1,
+            "properties": {
+                step["operationId"]: {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        parameter["name"]: merge(
+                            parameter.get("schema", {}),
+                            remove_empty({"description": parameter.get("description"),
+                             "default": parameter.get("default")
+                            }))
+                        for parameter in step["parameters"]
+                    }
+                }
+                for step in [path["get"] for path in api["paths"].values()]
+            }
+           }
+    if multi:
+        schema = {"type": "array", "items": schema}
+    return schema

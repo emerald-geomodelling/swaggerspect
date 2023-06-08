@@ -4,7 +4,7 @@ Swaggerspect introspects python classes and functions and generates machine read
 Yes, this is an intentional misuse of swagger, as swagger is meant to document REST API:s, not python functions, and to a lesser degree, of JSON Schema.
 
 The intended usage is to generate JSON that in turn can be sused to generate a simple user interface for the python functions or classes.
-In particular, this works out of the box with the [json-editor](https://github.com/json-editor/json-editor) web based JSON editor.
+In particular, this works out of the box with the [json-editor](https://github.com/json-editor/json-editor) web based JSON editor. Note that this library does ot provide any framework to serve REST requests executing the functions in any generate JSON; but that is about 10 lines of code in your favourite web app framework (Django, Flask...).
 
 # Usage
 

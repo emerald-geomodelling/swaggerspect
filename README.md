@@ -1,10 +1,10 @@
 # Swaggerspect
 
-Swaggerspect introspects python classes and functions and generates machine readable descriptions in the syntax used by [Swagger](https://swagger.io/specification/)
-(this is an intentional slight misuse of swagger, as swagger is meant to document REST API:s, not python functions).
+Swaggerspect introspects python classes and functions and generates machine readable descriptions in the [Swagger](https://swagger.io/specification/) and [JSON Schema](https://json-schema.org/) syntaxes.
+Yes, this is an intentional misuse of swagger, as swagger is meant to document REST API:s, not python functions, and to a lesser degree, of JSON Schema.
 
-The intended usage is to generate JSON that can be sused to generate a simple user interface for the python functions or classes. In particular, this could be a web based user interface,
-and as such, care is taken that the introspection data is serializable using JSON or YAML.
+The intended usage is to generate JSON that in turn can be sused to generate a simple user interface for the python functions or classes.
+In particular, this works out of the box with the [json-editor](https://github.com/json-editor/json-editor) web based JSON editor.
 
 # Usage
 

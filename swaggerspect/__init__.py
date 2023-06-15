@@ -35,14 +35,18 @@ def make_type_schema(*typenames):
             continue
         if typename is None:
             continue
+        schema = {}
         if not isinstance(typename, str):
+            if isinstance(typename, typing._AnnotatedAlias):
+                for metadata in typename.__metadata__:
+                    schema.update({key[len("swaggerspect_"):]: getattr(metadata, key)
+                                   for key in dir(metadata) if key.startswith("swaggerspect_")})
+                typename = typename.__args__[0]
             args = typing.get_args(typename)
             typename = _get_name(typename)
-        schema = {
-            "type": typemap.get(typename, "object"),
-            "x-python-type": typename,
-            #"x-python-orig": repr(orig)
-        }
+        schema["type"] = typemap.get(typename, "object")
+        schema["x-python-type"] = typename
+        #schema["x-python-orig"] = repr(orig)
         if schema["type"] == "array" and args:
             schema["items"] = make_type_schema(args[0])
         return schema
@@ -134,14 +138,18 @@ def get_class_api(cls):
                        "content": {
                            "application/json": {"schema": make_type_schema(cls)}}}}}
 
-
+def remove_hidden(api):
+    return [param for param in api
+            if not param.get("schema", {}).get("hide", False)]
+    
 def get_function_api_parameters_inspect(fn):
-    return [remove_empty({"name": k,
-                          "in": "query",
-                          "schema": merge(
-                              make_type_schema(v.annotation, typeof(v.default)),
-                              make_value_schema(v.default))})
-             for k, v in inspect.signature(fn).parameters.items()]
+    return remove_hidden(
+        [remove_empty({"name": k,
+                       "in": "query",
+                       "schema": merge(
+                           make_type_schema(v.annotation, typeof(v.default)),
+                           make_value_schema(v.default))})
+         for k, v in inspect.signature(fn).parameters.items()])
 
 def get_function_api_parameters_comments(fn):
     docs = inspect.getdoc(fn)

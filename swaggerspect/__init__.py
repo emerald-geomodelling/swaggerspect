@@ -251,7 +251,8 @@ def swagger_to_json_schema(api, multi = True):
         "anyOf": [
             {
                 "type": "object",
-                "title": step["operationId"],
+                "title": step["operationId"].split(".")[-1],
+                "required": [step["operationId"]],
                 "additionalProperties": False,
                 "properties": {
                     step["operationId"]: {

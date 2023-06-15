@@ -2,6 +2,7 @@ import inspect
 import numpydoc.docscrape
 import ast
 import typing
+import types
 import importlib.metadata
 
 def _get_name(obj):
@@ -182,7 +183,7 @@ def get_function_api_parameters_comments(fn):
              "schema": make_type_schema(p.type)}
             for p in docast["Parameters"]]
     
-def get_function_api(fn):
+def get_function_api(fn, name = None):
     args = merge(get_function_api_parameters_inspect(fn),
                  get_function_api_parameters_comments(fn)) 
 
@@ -195,25 +196,25 @@ def get_function_api(fn):
     returntype = inspect.signature(fn).return_annotation
         
     return {
-        "operationId": _get_name(fn),
+        "operationId": name or _get_name(fn),
         "description": description,
         "parameters": args,
         "responses": {"default":
-                      {"description": _get_name(fn),
+                      {"description": name or _get_name(fn),
                        "content": {
                            "application/json": remove_empty({
                                "schema": make_type_schema(returntype)})}}}}
 
-def get_api(obj):
+def get_api(obj, name = None):
     """Generate a swagger specification fragment for a single function
     call or class instantiation."""
     if type(obj) is type:
         return get_class_api(obj)
     elif inspect.isfunction(obj):
-        return get_function_api(obj)
+        return get_function_api(obj, name=name)
     return None
 
-def get_apis_dict(objs):
+def get_apis_dict(objs, local_names = False):
     return {
         "openapi": '3.0.3',
         "info": {"title": "unknown",
@@ -222,7 +223,7 @@ def get_apis_dict(objs):
         "paths": {
             "/" + k: {"get": v}
             for k, v in
-            [(k, get_api(v))
+            [(k, get_api(v, name = k if local_names else None))
              for k, v in objs.items()]
             if v
         }}
@@ -244,6 +245,8 @@ def get_apis_module(module):
             module = importlib.import_module(module)
         except:
             return {}
+    if not isinstance(module, types.ModuleType):
+        return {}
     docs = get_apis_dict({name: getattr(module, name)
                          for name in dir(module)
                          if not name.startswith("__")})
@@ -252,9 +255,27 @@ def get_apis_module(module):
                     "description": inspect.getdoc(module) or module.__name__}
     return docs
 
+def get_apis_class(cls):
+    if isinstance(cls, str):
+        try:
+            module, name = cls.rsplit(".", 1)
+            cls = getattr(importlib.import_module(module), name)
+        except:
+            return {}
+    if not isinstance(cls, type):
+        return {}
+    docs = get_apis_dict({name: getattr(cls, name)
+                          for name in dir(cls)
+                          if not name.startswith("__")},
+                         local_names=True)
+    docs["info"] = {"title": _get_name(cls),
+                    "version": "1.0",
+                    "description": inspect.getdoc(cls) or cls.__name__}
+    return docs
+
 def get_apis(objs):
     """Generates a swagger specification for module or entry point group."""
-    return merge(get_apis_module(objs), get_apis_entrypoints(objs))
+    return merge(merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
 
 def swagger_to_json_schema(api, multi = True):
     """Converts a swagger specification into a JSON schema for either

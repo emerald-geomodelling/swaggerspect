@@ -267,7 +267,6 @@ def swagger_to_json_schema(api, multi = True):
     """
     if not api: return {}
     schema = {
-        "description": api["info"]["description"],
         "anyOf": [
             {
                 "type": "object",
@@ -294,6 +293,7 @@ def swagger_to_json_schema(api, multi = True):
     }
     if multi:
         schema = {"type": "array", "items": schema}
+    schema["description"] = api["info"]["description"]
     return schema
 
 class JsonSchema(object):

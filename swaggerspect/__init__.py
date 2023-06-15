@@ -237,6 +237,7 @@ def swagger_to_json_schema(api, multi = True):
     or if multi is True (the default), a list of function calls each
     serialized as above.
     """
+    if not api: return {}
     schema = {
         "description": api["info"]["description"],
         "anyOf": [

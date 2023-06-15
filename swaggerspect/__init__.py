@@ -6,6 +6,7 @@ import importlib.metadata
 
 def _get_name(obj):
     if obj is None: return None
+    if obj is typing.Any: return 'typing.Any'
     return obj.__module__ + "." + obj.__name__
 
 typemap = {
@@ -14,13 +15,16 @@ typemap = {
     'builtins.float': 'number',
     'builtins.bool': 'boolean',
     'builtins.list': 'array',
+    'builtins.dict': 'object',
+    'typing.Any': None,
     'tuple': 'array',
     'str': 'string',
     'int': 'integer',
     'float': 'number',
     'bool': 'boolean',
     'list': 'array',
-    'tuple': 'array'
+    'tuple': 'array',
+    'dict': 'object'
 }
 
 def typeof(v):
@@ -30,25 +34,41 @@ def typeof(v):
 
 def make_type_schema(*typenames):
     for typename in typenames:
-        orig = typename
+        orig = repr(typename)
         if typename is inspect._empty:
             continue
         if typename is None:
             continue
-        schema = {}
+        args = None
+        metadatas = None
         if not isinstance(typename, str):
             if isinstance(typename, typing._AnnotatedAlias):
-                for metadata in typename.__metadata__:
-                    schema.update({key[len("swaggerspect_"):]: getattr(metadata, key)
-                                   for key in dir(metadata) if key.startswith("swaggerspect_")})
+                metadatas = typename.__metadata__
                 typename = typename.__args__[0]
             args = typing.get_args(typename)
             typename = _get_name(typename)
-        schema["type"] = typemap.get(typename, "object")
-        schema["x-python-type"] = typename
-        #schema["x-python-orig"] = repr(orig)
-        if schema["type"] == "array" and args:
-            schema["items"] = make_type_schema(args[0])
+
+        pytypename = typename
+        typename = typemap.get(typename, "object")
+
+        schema = {}
+        if typename is not None:
+            schema["type"] = typename
+            schema["x-python-type"] = pytypename
+            #schema["x-python-orig"] = orig
+            if schema["type"] == "array" and args:
+                schema["items"] = make_type_schema(args[0])
+            elif schema["type"] == "object" and args:
+                schema["propertyNames"] = make_type_schema(args[0])
+                schema["patternProperties"] = make_type_schema(args[1])
+
+        if metadatas:
+           for metadata in metadatas:
+               schema.update({key[len("swaggerspect_"):]: getattr(metadata, key)
+                              for key in dir(metadata) if key.startswith("swaggerspect_")})
+               if hasattr(metadata, "json_schema"):
+                   schema.update(metadata.json_schema)
+            
         return schema
     return {}
 
@@ -275,3 +295,12 @@ def swagger_to_json_schema(api, multi = True):
     if multi:
         schema = {"type": "array", "items": schema}
     return schema
+
+class JsonSchema(object):
+    """Type annotation that accepts any type (like typing.Any), but
+    outputs the supplied JSON Schema in swaggerspect.
+    """    
+    def __new__(cls, schema):
+        self = object.__new__(cls)
+        self.json_schema = schema
+        return typing.Annotated[typing.Any, self]

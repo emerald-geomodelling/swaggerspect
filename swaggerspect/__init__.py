@@ -33,7 +33,7 @@ def typeof(v):
     if v is inspect._empty: return None
     return type(v)
 
-def make_type_schema(*typenames):
+def make_type_schema(*typenames, hasdefault=False):
     for typename in typenames:
         if typename is inspect._empty:
             continue
@@ -56,8 +56,13 @@ def make_type_schema(*typenames):
                 typename = _get_name(typename)
 
         pytypename = typename
-        typename = typemap.get(typename, "object")
+        typename = typemap.get(typename)
 
+        if typename is None:
+            typename = "object"
+            if typeof(hasdefault) is not None:
+                schema["hide"] = True
+        
         if typename is not None:
             schema["type"] = typename
             schema["x-python-type"] = pytypename
@@ -141,7 +146,7 @@ def get_class_api_parameters_comments(cls):
     return [{"name": n, "in": "query", "description": v} for n, v in _get_class_property_comments(cls).items()]
 
 def get_class_api_parameters_inspect(cls):
-    return [{"name": n, "in": "query", "schema": {} if v is None else merge(make_type_schema(typeof(v)), make_value_schema(v))}
+    return [{"name": n, "in": "query", "schema": {} if v is None else merge(make_type_schema(typeof(v), hasdefault=v), make_value_schema(v))}
             for n, v in inspect.getmembers(cls)
             if (not n.startswith('__')
                 and not inspect.ismethod(v)
@@ -152,9 +157,10 @@ def get_class_api_parameters_typing(cls):
     return [{"name": k, "in": "query", "schema": make_type_schema(t)} for k, t in typing.get_type_hints(cls).items()]
 
 def get_class_api(cls):
-    args = merge(get_class_api_parameters_typing(cls),
-                 merge(get_class_api_parameters_inspect(cls),
-                       get_class_api_parameters_comments(cls)))
+    args = remove_hidden(
+        merge(get_class_api_parameters_typing(cls),
+              merge(get_class_api_parameters_inspect(cls),
+                    get_class_api_parameters_comments(cls))))
     return {
         "operationId": _get_name(cls),
         "description": inspect.getdoc(cls),
@@ -169,13 +175,12 @@ def remove_hidden(api):
             if not param.get("schema", {}).get("hide", False)]
     
 def get_function_api_parameters_inspect(fn):
-    return remove_hidden(
-        [remove_empty({"name": k,
-                       "in": "query",
-                       "schema": merge(
-                           make_type_schema(v.annotation, typeof(v.default)),
-                           make_value_schema(v.default))})
-         for k, v in inspect.signature(fn).parameters.items()])
+    return [remove_empty({"name": k,
+                          "in": "query",
+                          "schema": merge(
+                              make_type_schema(v.annotation, typeof(v.default), hasdefault=v.default),
+                              make_value_schema(v.default))})
+            for k, v in inspect.signature(fn).parameters.items()]
 
 def get_function_api_parameters_comments(fn):
     docs = inspect.getdoc(fn)
@@ -189,8 +194,9 @@ def get_function_api_parameters_comments(fn):
             for p in docast["Parameters"]]
     
 def get_function_api(fn, name = None):
-    args = merge(get_function_api_parameters_inspect(fn),
-                 get_function_api_parameters_comments(fn)) 
+    args = remove_hidden(
+        merge(get_function_api_parameters_inspect(fn),
+              get_function_api_parameters_comments(fn)))
 
     docs = inspect.getdoc(fn)
     description = _get_name(fn)

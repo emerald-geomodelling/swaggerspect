@@ -13,6 +13,9 @@ To get a swagger specification fragment for a single function or class:
 print(yaml.dump(swaggerspect.get_api(some_function_or_class)))
 ```
 
+To get a full swagger definition for the methods of a class:
+print(yaml.dump(swaggerspect.get_apis("some_module_name.SomeClassName")))
+
 To get a full swagger definition for a set of functions and classes, either listed in an entry point group, or available in a single module:
 ```
 print(yaml.dump(swaggerspect.get_apis("my.entrypoint.group")))
@@ -23,3 +26,9 @@ The same, but as a JSON schema for a single finction call, or a list of calls (`
 ```
 print(yaml.dump(swaggerspect.swagger_to_json_schema(swaggerspect.get_apis("my.entrypoint.group"), multi=False)))
 ```
+
+# Notes and caveats:
+
+* The API parameters for a class, are its properties, not the parameters to `__init__()`.
+* Parameters of unknown types / types with no equivalent in JSON, that have default values, are hidden/ignored.
+* A more elaborate schema for a parameter can be specified using typing.Annotated with an annotation that has a property `json_schema` containing a literal JSON Schema fragment.

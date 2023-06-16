@@ -79,7 +79,7 @@ def make_value_schema(*values):
             continue
         if value is None:
             continue
-        if isinstance(value, (int, str, dict, list, bool)):
+        if isinstance(value, (int, str, float, dict, list, bool)):
             return {"default": value}
     return {}
 

@@ -35,24 +35,29 @@ def typeof(v):
 
 def make_type_schema(*typenames):
     for typename in typenames:
-        orig = repr(typename)
         if typename is inspect._empty:
             continue
         if typename is None:
             continue
+
+        orig = repr(typename)
+        schema = {}
         args = None
         metadatas = None
         if not isinstance(typename, str):
             if isinstance(typename, typing._AnnotatedAlias):
                 metadatas = typename.__metadata__
                 typename = typename.__args__[0]
-            args = typing.get_args(typename)
-            typename = _get_name(typename)
+            if isinstance(typename, typing._LiteralGenericAlias):
+                schema["enum"] = typing.get_args(typename)
+                typename = _get_name(type(schema["enum"][0]))
+            else:
+                args = typing.get_args(typename)
+                typename = _get_name(typename)
 
         pytypename = typename
         typename = typemap.get(typename, "object")
 
-        schema = {}
         if typename is not None:
             schema["type"] = typename
             schema["x-python-type"] = pytypename

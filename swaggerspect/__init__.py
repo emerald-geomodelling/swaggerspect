@@ -49,7 +49,7 @@ def make_type_schema(*typenames, hasdefault=False):
                 metadatas = typename.__metadata__
                 typename = typename.__args__[0]
             if isinstance(typename, typing._LiteralGenericAlias):
-                schema["enum"] = typing.get_args(typename)
+                schema["enum"] = list(typing.get_args(typename))
                 typename = _get_name(type(schema["enum"][0]))
             else:
                 if hasattr(typename, "json_schema"):

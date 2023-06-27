@@ -29,6 +29,13 @@ print(yaml.dump(swaggerspect.swagger_to_json_schema(swaggerspect.get_apis("my.en
 
 # Notes and caveats:
 
-* The API parameters for a class, are its properties, not the parameters to `__init__()`.
-* Parameters of unknown types / types with no equivalent in JSON, that have default values, are hidden/ignored.
-* A more elaborate schema for a parameter can be specified using typing.Annotated with an annotation that has a property `json_schema` containing a literal JSON Schema fragment.
+* The API parameters for a class, are its properties, not the
+  parameters to `__init__()`.
+* Parameters of unknown types / types with no equivalent in JSON, that
+  have default values, are hidden/ignored.
+* A more elaborate schema for a parameter can be specified using
+  typing.Annotated with an annotation that has a property
+  `json_schema` containing a literal JSON Schema fragment.
+* Parameters of a class can be grouped into dictionaries in the
+  schema, by sharing a common prefix (separated by `__`), and seting
+  `group_parameters=True` in the call to `get_apis`.

@@ -4,6 +4,7 @@ import ast
 import typing
 import types
 import importlib.metadata
+import copy
 
 def _get_name(obj):
     if obj is None: return None
@@ -286,10 +287,57 @@ def get_apis_class(cls):
                     "description": inspect.getdoc(cls) or cls.__name__}
     return docs
 
-def get_apis(objs):
-    """Generates a swagger specification for module or entry point group."""
-    return merge(merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
+def _group_parameters(parameters):
+    grouped = []
+    grouped_by_name = {}
+    for param in parameters:
+        if "__" not in param["name"]:
+            grouped.append(param)
+            grouped_by_name[param["name"]] = param
+        else:
+            param = dict(param)
+            path = param["name"].split("__")
+            if path[0] not in grouped_by_name:
+                grouped_by_name[path[0]] = {
+                    "in": param["in"],
+                    "name": path[0],
+                    "schema": {
+                            "type": "object",
+                            "properties": {}
+                    }
+                }
+                grouped.append(grouped_by_name[path[0]])
+            
+            g = grouped_by_name[path[0]]["schema"]
+            for item in path[1:-1]:
+                if item not in g["properties"]:
+                    g["properties"][item] = {
+                        "type": "object",
+                        "properties": {}
+                    }
+                g = g["properties"][item]
+            
+            g["properties"][path[-1]] = param["schema"]
+    return grouped
 
+def group_apis_parameters(apis):
+    apis = copy.deepcopy(apis)
+    for path, methods in apis["paths"].items():
+        for method, api in methods.items():
+            api["parameters"] = _group_parameters(api["parameters"])
+    return apis
+
+
+def get_apis(objs, group_parameters = False):
+    """Generates a swagger specification for module or entry point group.
+    If group_parameters is True, then parameter names are treated as
+    "__" separated paths in a tree of dictionaries.
+    """
+    res = merge(merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
+    if merge:
+        res = group_apis_parameters(res)
+    return res
+    
 def swagger_to_json_schema(api, multi = True):
     """Converts a swagger specification into a JSON schema for either
     a single function call serialized as

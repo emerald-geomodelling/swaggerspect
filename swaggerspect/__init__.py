@@ -302,8 +302,9 @@ def _group_parameters(parameters):
                     "in": param["in"],
                     "name": path[0],
                     "schema": {
-                            "type": "object",
-                            "properties": {}
+                        "type": "object",
+                        "properties": {},
+                        "x-python-type": None
                     }
                 }
                 grouped.append(grouped_by_name[path[0]])
@@ -313,7 +314,8 @@ def _group_parameters(parameters):
                 if item not in g["properties"]:
                     g["properties"][item] = {
                         "type": "object",
-                        "properties": {}
+                        "properties": {},
+                        "x-python-type": None
                     }
                 g = g["properties"][item]
             

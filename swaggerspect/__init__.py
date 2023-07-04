@@ -34,7 +34,7 @@ def typeof(v):
     if v is inspect._empty: return None
     return type(v)
 
-def make_type_schema(*typenames, hasdefault=False):
+def make_type_schema(*typenames, hasdefault=None):
     for typename in typenames:
         if typename is inspect._empty:
             continue
@@ -77,12 +77,19 @@ def make_type_schema(*typenames, hasdefault=False):
                 schema["patternProperties"] = make_type_schema(args[1])
 
         if metadatas:
-           for metadata in metadatas:
-               schema.update({key[len("swaggerspect_"):]: getattr(metadata, key)
-                              for key in dir(metadata) if key.startswith("swaggerspect_")})
-               if hasattr(metadata, "json_schema"):
-                   schema.update(metadata.json_schema)
-            
+            for metadata in metadatas:
+                if isinstance(metadata, dict):
+                    schema.update({key[len("swaggerspect_"):]: value
+                                   for key, value in metadata.items()
+                                   if key.startswith("swaggerspect_")})
+                    if "json_schema" in metadata:
+                        schema.update(metadata["json_schema"])
+                else:
+                    schema.update({key[len("swaggerspect_"):]: getattr(metadata, key)
+                                   for key in dir(metadata)
+                                   if key.startswith("swaggerspect_")})
+                    if hasattr(metadata, "json_schema"):
+                        schema.update(metadata.json_schema)
         return schema
     return {}
 

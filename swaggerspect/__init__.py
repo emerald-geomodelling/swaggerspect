@@ -5,6 +5,7 @@ import typing
 import types
 import importlib.metadata
 import copy
+import sys
 
 def _get_name(obj):
     if obj is None: return None
@@ -47,6 +48,12 @@ def make_type_schema(*typenames, hasdefault=None):
         args = None
         metadatas = None
         if not isinstance(typename, str):
+            if isinstance(typename, typing.TypeVar):
+                bound = typename.__bound__
+                if isinstance(bound, typing.ForwardRef):
+                    module = sys.modules[typename.__module__]
+                    bound = bound._evaluate(module.__dict__, {}, set())
+                typename = bound
             if isinstance(typename, typing._AnnotatedAlias):
                 metadatas = typename.__metadata__
                 typename = typename.__args__[0]
@@ -60,7 +67,7 @@ def make_type_schema(*typenames, hasdefault=None):
                 typename = _get_name(typename)
 
         pytypename = typename
-        schema.update(typemap.get(typename))
+        schema.update(typemap.get(typename, {}))
 
         if schema.get("type", None) is None:
             schema["type"] = "object"
@@ -170,7 +177,7 @@ def get_class_api(cls):
     if api == "properties":
         return get_class_properties_api(cls)
     else:
-        return get_api(cls.__init__)
+        return get_function_api(cls.__init__, name=_get_name(cls))
     
 def get_class_properties_api(cls):
     args = remove_hidden(

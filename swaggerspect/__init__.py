@@ -12,21 +12,22 @@ def _get_name(obj):
     return obj.__module__ + "." + obj.__name__
 
 typemap = {
-    'builtins.str': 'string',
-    'builtins.int': 'integer',
-    'builtins.float': 'number',
-    'builtins.bool': 'boolean',
-    'builtins.list': 'array',
-    'builtins.dict': 'object',
-    'typing.Any': None,
-    'tuple': 'array',
-    'str': 'string',
-    'int': 'integer',
-    'float': 'number',
-    'bool': 'boolean',
-    'list': 'array',
-    'tuple': 'array',
-    'dict': 'object'
+    'builtins.str': {'type':'string'},
+    'builtins.int': {'type':'integer'},
+    'builtins.float': {'type':'number'},
+    'builtins.bool': {'type':'boolean'},
+    'builtins.list': {'type':'array'},
+    'builtins.dict': {'type':'object'},
+    'typing.Any': {},
+    'tuple': {'type':'array'},
+    'str': {'type':'string'},
+    'int': {'type':'integer'},
+    'float': {'type':'number'},
+    'bool': {'type':'boolean'},
+    'list': {'type':'array'},
+    'tuple': {'type':'array'},
+    'dict': {'type':'object'},
+    'pydantic_core._pydantic_core.Url': {"type": "string", "format": "url"}
 }
 
 def typeof(v):
@@ -59,22 +60,20 @@ def make_type_schema(*typenames, hasdefault=None):
                 typename = _get_name(typename)
 
         pytypename = typename
-        typename = typemap.get(typename)
+        schema.update(typemap.get(typename))
 
-        if typename is None:
-            typename = "object"
+        if schema.get("type", None) is None:
+            schema["type"] = "object"
             if typeof(hasdefault) is not None:
                 schema["hide"] = True
         
-        if typename is not None:
-            schema["type"] = typename
-            schema["x-python-type"] = pytypename
-            #schema["x-python-orig"] = orig
-            if schema["type"] == "array" and args:
-                schema["items"] = make_type_schema(args[0])
-            elif schema["type"] == "object" and args:
-                schema["propertyNames"] = make_type_schema(args[0])
-                schema["patternProperties"] = make_type_schema(args[1])
+        schema["x-python-type"] = pytypename
+        #schema["x-python-orig"] = orig
+        if schema["type"] == "array" and args:
+            schema["items"] = make_type_schema(args[0])
+        elif schema["type"] == "object" and args:
+            schema["propertyNames"] = make_type_schema(args[0])
+            schema["patternProperties"] = make_type_schema(args[1])
 
         if metadatas:
             for metadata in metadatas:

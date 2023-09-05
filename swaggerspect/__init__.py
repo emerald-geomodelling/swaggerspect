@@ -167,6 +167,13 @@ def get_class_api_parameters_typing(cls):
     return [{"name": k, "in": "query", "schema": make_type_schema(t)} for k, t in typing.get_type_hints(cls).items()]
 
 def get_class_api(cls):
+    api = getattr(cls, "api_type", "properties")
+    if api == "properties":
+        return get_class_properties_api(cls)
+    else:
+        return get_api(cls.__init__)
+    
+def get_class_properties_api(cls):
     args = remove_hidden(
         merge(get_class_api_parameters_typing(cls),
               merge(get_class_api_parameters_inspect(cls),

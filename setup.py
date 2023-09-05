@@ -4,7 +4,7 @@ import setuptools
 
 setuptools.setup(
     name='swaggerspect',
-    version='0.0.7',
+    version='0.0.8',
     description='',
     long_description="""Introspects python classes and functions and generates swagger style documentation objects.""",
     long_description_content_type="text/markdown",

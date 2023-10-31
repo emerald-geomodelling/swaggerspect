@@ -268,6 +268,8 @@ def get_apis_entrypoints(group):
     entrypoints = entrypoints[group]
     docs = get_apis_dict({entry.name: entry.load()
                           for entry in entrypoints})
+    for path, api in docs["paths"].items():
+        api["get"]["operationId"] = path[1:] # Remove the /
     docs["info"] = {"title": group,
                     "version": "1.0",
                     "description": group}

@@ -152,9 +152,12 @@ def _get_class_property_comments(cls):
     for idx in range(len(body.body) - 1):
         s = body.body[idx]
         ss = body.body[idx+1]
-        if isinstance(s, ast.Assign) and isinstance(ss, ast.Expr) and isinstance(ss.value, ast.Constant):
-            for t in s.targets:
-                propdocs[t.id] = ss.value.value
+        if isinstance(ss, ast.Expr) and isinstance(ss.value, ast.Constant):
+            if isinstance(s, ast.Assign):
+                for t in s.targets:
+                    propdocs[t.id] = ss.value.value
+            elif isinstance(s, ast.AnnAssign):
+                propdocs[s.target.id] = ss.value.value
 
     return propdocs
 
@@ -325,6 +328,8 @@ def _group_parameters(parameters):
                     "name": path[0],
                     "schema": {
                         "type": "object",
+                        "title": path[0],
+                        "description": path[0],
                         "properties": {},
                         "x-python-type": None
                     }
@@ -336,12 +341,17 @@ def _group_parameters(parameters):
                 if item not in g["properties"]:
                     g["properties"][item] = {
                         "type": "object",
+                        "title": item,
+                        "description": item,
                         "properties": {},
                         "x-python-type": None
                     }
                 g = g["properties"][item]
-            
-            g["properties"][path[-1]] = param["schema"]
+
+            p = dict(param["schema"])
+            if "description" in param: p["description"] = param["description"]
+            if "title" not in p: p["title"] = path[-1]
+            g["properties"][path[-1]] = p
     return grouped
 
 def group_apis_parameters(apis):
@@ -352,13 +362,13 @@ def group_apis_parameters(apis):
     return apis
 
 
-def get_apis(objs, group_parameters = False):
+def get_apis(objs, group_parameters = True):
     """Generates a swagger specification for module or entry point group.
     If group_parameters is True, then parameter names are treated as
     "__" separated paths in a tree of dictionaries.
     """
     res = merge(merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
-    if merge:
+    if group_parameters:
         res = group_apis_parameters(res)
     return res
     

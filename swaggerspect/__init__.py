@@ -173,7 +173,7 @@ def get_class_api_parameters_inspect(cls):
                 and not inspect.isdatadescriptor(v))]
     
 def get_class_api_parameters_typing(cls):
-    return [{"name": k, "in": "query", "schema": make_type_schema(t)} for k, t in typing.get_type_hints(cls).items()]
+    return [{"name": k, "in": "query", "schema": make_type_schema(t)} for k, t in typing.get_type_hints(cls, include_extras=True).items()]
 
 def get_class_api(cls):
     api = getattr(cls, "api_type", "properties")

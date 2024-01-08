@@ -384,26 +384,29 @@ def swagger_to_json_schema(api, multi = True):
     if not api: return {}
     schema = {
         "anyOf": [
-            {
-                "type": "object",
-                "title": step["operationId"].split(".")[-1],
-                "required": [step["operationId"]],
-                "additionalProperties": False,
-                "properties": {
-                    step["operationId"]: {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            parameter["name"]: merge(
-                                parameter.get("schema", {}),
-                                remove_empty({"description": parameter.get("description"),
-                                              "default": parameter.get("default")
-                                }))
-                            for parameter in step["parameters"]
+            remove_empty(
+                {
+                    "type": "object",
+                    "title": step["operationId"].split(".")[-1],
+                    "description": step.get("description"),
+                    "required": [step["operationId"]],
+                    "additionalProperties": False,
+                    "properties": {
+                        step["operationId"]: {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                parameter["name"]: merge(
+                                    parameter.get("schema", {}),
+                                    remove_empty({"description": parameter.get("description"),
+                                                  "default": parameter.get("default")
+                                                  }))
+                                for parameter in step["parameters"]
+                            }
                         }
                     }
                 }
-            }
+            )
             for step in [path["get"] for path in api["paths"].values()]
         ]
     }

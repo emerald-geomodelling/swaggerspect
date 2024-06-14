@@ -16,7 +16,7 @@ def get_api(obj, name = None):
     """Generate a swagger specification fragment for a single function
     call or class instantiation."""
     if type(obj) is type:
-        return class_api.get_class_api(obj)
+        return class_api.get_class_api(obj, name=name)
     elif inspect.isfunction(obj):
         return function_api.get_function_api(obj, name=name)
     return None

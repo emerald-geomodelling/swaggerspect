@@ -60,6 +60,9 @@ def make_type_schema(*typenames, hasdefault=None):
             if isinstance(typename, typing._LiteralGenericAlias):
                 schema["enum"] = list(typing.get_args(typename))
                 typename = _get_name(type(schema["enum"][0]))
+            elif isinstance(typename, types.UnionType):
+                schema["anyOf"] = [make_type_schema(arg) for arg in typing.get_args(typename)]
+                typename = "types.UnionType"
             else:
                 if hasattr(typename, "json_schema"):
                     metadatas = [typename]
@@ -69,16 +72,16 @@ def make_type_schema(*typenames, hasdefault=None):
         pytypename = typename
         schema.update(typemap.get(typename, {}))
 
-        if schema.get("type", None) is None:
+        if schema.get("type", None) is None and typename != "types.UnionType":
             schema["type"] = "object"
             if typeof(hasdefault) is not None:
                 schema["hide"] = True
         
         schema["x-python-type"] = pytypename
         #schema["x-python-orig"] = orig
-        if schema["type"] == "array" and args:
+        if schema.get("type") == "array" and args:
             schema["items"] = make_type_schema(args[0])
-        elif schema["type"] == "object" and args:
+        elif schema.get("type") == "object" and args:
             schema["propertyNames"] = make_type_schema(args[0])
             schema["patternProperties"] = make_type_schema(args[1])
 

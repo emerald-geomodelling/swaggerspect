@@ -9,7 +9,7 @@ import sys
 from . import type_schema
 from . import value_schema
 from . import schema_utils
-
+from . import function_api
 
 def _get_class_property_comments(cls):
     propdocs = {}
@@ -70,4 +70,4 @@ def get_class_api(cls):
     if api == "properties":
         return get_class_properties_api(cls)
     else:
-        return get_function_api(cls.__init__, name=type_schema.get_type_name(cls))
+        return function_api.get_function_api(cls.__init__, name=type_schema.get_type_name(cls))

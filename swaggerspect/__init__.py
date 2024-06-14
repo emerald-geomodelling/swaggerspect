@@ -23,29 +23,19 @@ def get_api(obj, name = None):
 
 def get_apis_dict(objs, local_names = False):
     return {
-        "openapi": '3.0.3',
-        "info": {"title": "unknown",
-                 "version": "1.0",
-                 "description": "unknown"},
-        "paths": {
-            "/" + k: {"get": v}
-            for k, v in
-            [(k, get_api(v, name = k if local_names else None))
-             for k, v in objs.items()]
-            if v
-        }}
+        "anyOf": [v
+                  for v in [get_api(v, name = k if local_names else None)
+                            for k, v in objs.items()]
+                  if v]}
 
 def get_apis_entrypoints(group):
     entrypoints = importlib.metadata.entry_points()
     if group not in entrypoints: return {}
     entrypoints = entrypoints[group]
     docs = get_apis_dict({entry.name: entry.load()
-                          for entry in entrypoints})
-    for path, api in docs["paths"].items():
-        api["get"]["operationId"] = path[1:] # Remove the /
-    docs["info"] = {"title": group,
-                    "version": "1.0",
-                    "description": group}
+                          for entry in entrypoints}, local_names=True)
+    docs["title"] = group
+    docs["description"] = group
     return docs
     
 def get_apis_module(module):
@@ -59,9 +49,8 @@ def get_apis_module(module):
     docs = get_apis_dict({name: getattr(module, name)
                          for name in dir(module)
                          if not name.startswith("__")})
-    docs["info"] = {"title": module.__name__,
-                    "version": "1.0",
-                    "description": inspect.getdoc(module) or module.__name__}
+    docs["title"] = module.__name__
+    docs["description"] = inspect.getdoc(module) or module.__name__
     return docs
 
 def get_apis_class(cls):
@@ -77,36 +66,28 @@ def get_apis_class(cls):
                           for name in dir(cls)
                           if not name.startswith("__")},
                          local_names=True)
-    docs["info"] = {"title": type_schema.get_type_name(cls),
-                    "version": "1.0",
-                    "description": inspect.getdoc(cls) or cls.__name__}
+    docs["title"] = type_schema.get_type_name(cls)
+    docs["description"] = inspect.getdoc(cls) or cls.__name__
     return docs
 
 def _group_parameters(parameters):
-    grouped = []
     grouped_by_name = {}
-    for param in parameters:
-        if "__" not in param["name"]:
-            grouped.append(param)
-            grouped_by_name[param["name"]] = param
+    for name, schema in parameters.items():
+        if "__" not in name:
+            grouped_by_name[name] = schema
         else:
-            param = dict(param)
-            path = param["name"].split("__")
+            schema = dict(schema)
+            path = name.split("__")
             if path[0] not in grouped_by_name:
                 grouped_by_name[path[0]] = {
-                    "in": param["in"],
-                    "name": path[0],
-                    "schema": {
-                        "type": "object",
-                        "title": path[0],
-                        "description": path[0],
-                        "properties": {},
-                        "x-python-type": None
-                    }
+                    "type": "object",
+                    "title": path[0],
+                    "description": path[0],
+                    "properties": {},
+                    "x-python-type": None
                 }
-                grouped.append(grouped_by_name[path[0]])
             
-            g = grouped_by_name[path[0]]["schema"]
+            g = grouped_by_name[path[0]]
             for item in path[1:-1]:
                 if item not in g["properties"]:
                     g["properties"][item] = {
@@ -118,21 +99,19 @@ def _group_parameters(parameters):
                     }
                 g = g["properties"][item]
 
-            p = dict(param["schema"])
-            if "description" in param: p["description"] = param["description"]
+            p = dict(schema)
             if "title" not in p: p["title"] = path[-1]
             g["properties"][path[-1]] = p
-    return grouped
+    return grouped_by_name
 
 def group_apis_parameters(apis):
     apis = copy.deepcopy(apis)
-    for path, methods in apis["paths"].items():
-        for method, api in methods.items():
-            api["parameters"] = _group_parameters(api["parameters"])
+    for api in apis["anyOf"]:
+        method = next(iter(api["properties"].values()))
+        method["properties"] = _group_parameters(method["properties"])
     return apis
 
-
-def get_apis(objs, group_parameters = True):
+def get_apis(objs, group_parameters = True, multiple=False):
     """Generates a swagger specification for module or entry point group.
     If group_parameters is True, then parameter names are treated as
     "__" separated paths in a tree of dictionaries.
@@ -140,6 +119,11 @@ def get_apis(objs, group_parameters = True):
     res = schema_utils.merge(schema_utils.merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
     if group_parameters:
         res = group_apis_parameters(res)
+    if multiple:
+        res = {"type": "array",
+               "title": res["title"],
+               "description": res["description"],
+               "items": res}
     return res
     
 def swagger_to_json_schema(api, multi = True):

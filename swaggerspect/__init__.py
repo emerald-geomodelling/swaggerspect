@@ -128,16 +128,21 @@ def get_apis(objs, group_parameters = True, multi=False):
     
 def swagger_to_json_schema(api, multi = True):
     warnings.warn("swagger_to_json_schema is deprecated; apis are now json_schemas by default", DeprecationWarning)
-    if multi is True:
-        return {"type": "array",
-                "title": api["title"],
-                "description": api["description"],
-                "items": api}
-    return api
+    if "items" in api:
+        if multi:
+            return api
+        return api["items"]
+    else:
+        if multi:
+            return {"type": "array",
+                    "title": api["title"],
+                    "description": api["description"],
+                    "items": api}
+        return api
 
 def json_schema_to_swagger(api):
     if "items" in api: api = api["items"]
-    
+    return api
     
 
 class JsonSchema(object):

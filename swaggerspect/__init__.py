@@ -140,10 +140,39 @@ def swagger_to_json_schema(api, multi = True):
                     "items": api}
         return api
 
+def _json_schema_to_swagger_parameter(name, schema):
+    return {
+        "in": "query",
+        "name": name,
+        "description": schema.get("description", name) if isinstance(schema, dict) else name,
+        "schema": schema
+    }
+        
+def _json_schema_to_swagger_endpoint(schema):
+    operation_id, params = next(iter(schema["properties"].items()))
+    return {
+        "/" + operation_id: {
+            "get": {
+                "description": schema["description"],
+                "operationId": operation_id,
+                "parameters": [_json_schema_to_swagger_parameter(name, schema)
+                               for name, schema in params["properties"].items()]
+            }
+        }
+    }
+
 def json_schema_to_swagger(api):
     if "items" in api: api = api["items"]
-    return api
-    
+    return {
+        "info": {
+            "description": api["description"],
+            "title": api["title"],
+            "version": '1.0'
+        },
+        "openapi": "3.0.3",
+        "paths": [_json_schema_to_swagger_endpoint(schema)
+                  for schema in api["anyOf"]]
+    }
 
 class JsonSchema(object):
     """Type annotation that accepts any type (like typing.Any), but

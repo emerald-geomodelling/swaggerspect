@@ -111,7 +111,7 @@ def group_apis_parameters(apis):
         method["properties"] = _group_parameters(method["properties"])
     return apis
 
-def get_apis(objs, group_parameters = True, multiple=False):
+def get_apis(objs, group_parameters = True, multi=False):
     """Generates a swagger specification for module or entry point group.
     If group_parameters is True, then parameter names are treated as
     "__" separated paths in a tree of dictionaries.
@@ -119,7 +119,7 @@ def get_apis(objs, group_parameters = True, multiple=False):
     res = schema_utils.merge(schema_utils.merge(get_apis_module(objs), get_apis_entrypoints(objs)), get_apis_class(objs))
     if group_parameters:
         res = group_apis_parameters(res)
-    if multiple:
+    if multi:
         res = {"type": "array",
                "title": res["title"],
                "description": res["description"],
@@ -127,47 +127,18 @@ def get_apis(objs, group_parameters = True, multiple=False):
     return res
     
 def swagger_to_json_schema(api, multi = True):
-    """Converts a swagger specification into a JSON schema for either
-    a single function call serialized as
+    warnings.warn("swagger_to_json_schema is deprecated; apis are now json_schemas by default", DeprecationWarning)
+    if multi is True:
+        return {"type": "array",
+                "title": api["title"],
+                "description": api["description"],
+                "items": api}
+    return api
 
-    {"function.name": {"argname1": "value1", ... "argnameN": "valueN"}}
-
-    or if multi is True (the default), a list of function calls each
-    serialized as above.
-    """
-    if not api: return {}
-    schema = {
-        "anyOf": [
-            schema_utils.remove_empty(
-                {
-                    "type": "object",
-                    "title": step["operationId"].split(".")[-1],
-                    "description": step.get("description"),
-                    "required": [step["operationId"]],
-                    "additionalProperties": False,
-                    "properties": {
-                        step["operationId"]: {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                parameter["name"]: schema_utils.merge(
-                                    parameter.get("schema", {}),
-                                    schema_utils.remove_empty({"description": parameter.get("description"),
-                                                  "default": parameter.get("default")
-                                                  }))
-                                for parameter in step["parameters"]
-                            }
-                        }
-                    }
-                }
-            )
-            for step in [path["get"] for path in api["paths"].values()]
-        ]
-    }
-    if multi:
-        schema = {"type": "array", "items": schema}
-    schema["description"] = api["info"]["description"]
-    return schema
+def json_schema_to_swagger(api):
+    if "items" in api: api = api["items"]
+    
+    
 
 class JsonSchema(object):
     """Type annotation that accepts any type (like typing.Any), but

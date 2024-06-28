@@ -12,7 +12,7 @@ def remove_empty(obj):
     return {k: v for
             k, v in [(k, remove_empty(v))
                      for k, v in obj.items()]
-            if v}
+            if v != {}}
 
 def remove_hidden(api):
     api = dict(api)

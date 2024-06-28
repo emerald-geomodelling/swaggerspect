@@ -108,7 +108,8 @@ def group_apis_parameters(apis):
     apis = copy.deepcopy(apis)
     for api in apis["anyOf"]:
         method = next(iter(api["properties"].values()))
-        method["properties"] = _group_parameters(method["properties"])
+        if "properties" in method:
+            method["properties"] = _group_parameters(method["properties"])
     return apis
 
 def get_apis(objs, group_parameters = True, multi=False):

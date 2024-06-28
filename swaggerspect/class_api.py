@@ -37,37 +37,59 @@ def _get_class_property_comments(cls):
     return propdocs
 
 def get_class_api_parameters_comments(cls):
-    return [{"name": n, "in": "query", "description": v} for n, v in _get_class_property_comments(cls).items()]
+    return {"properties":
+            {n: {"description": v}
+             for n, v in _get_class_property_comments(cls).items()}}
 
 def get_class_api_parameters_inspect(cls):
-    return [{"name": n, "in": "query", "schema": {} if v is None else schema_utils.merge(type_schema.make_type_schema(type_schema.typeof(v), hasdefault=v), value_schema.make_value_schema(v))}
-            for n, v in inspect.getmembers(cls)
-            if (not n.startswith('__')
-                and not inspect.ismethod(v)
-                and not inspect.isfunction(v)
-                and not inspect.isdatadescriptor(v))]
-    
+    return {"properties":
+            {n: ({} if v is None
+                 else schema_utils.merge(
+                         type_schema.make_type_schema(
+                             type_schema.typeof(v), hasdefault=v),
+                         value_schema.make_value_schema(v)))
+             for n, v in inspect.getmembers(cls)
+             if (not n.startswith('__')
+                 and not inspect.ismethod(v)
+                 and not inspect.isfunction(v)
+                 and not inspect.isdatadescriptor(v))}}
+            
 def get_class_api_parameters_typing(cls):
-    return [{"name": k, "in": "query", "schema": type_schema.make_type_schema(t)} for k, t in typing.get_type_hints(cls, include_extras=True).items()]
+    return {"properties":
+            {k: type_schema.make_type_schema(t)
+             for k, t in typing.get_type_hints(
+                     cls, include_extras=True).items()}}
     
-def get_class_properties_api(cls):
+def get_class_properties_api(cls, name=None):
     args = schema_utils.remove_hidden(
-        schema_utils.merge(get_class_api_parameters_typing(cls),
-              schema_utils.merge(get_class_api_parameters_inspect(cls),
-                    get_class_api_parameters_comments(cls))))
-    return {
-        "operationId": type_schema.get_type_name(cls),
-        "description": inspect.getdoc(cls),
-        "parameters": args,
-        "responses": {"default":
-                      {"description": type_schema.get_type_name(cls),
-                       "content": {
-                           "application/json": {"schema": type_schema.make_type_schema(cls)}}}}}
+        schema_utils.merge(
+            {"type": "object",
+             "additionalProperties": False},
+            schema_utils.merge(get_class_api_parameters_typing(cls),
+                               schema_utils.merge(get_class_api_parameters_inspect(cls),
+                                                  get_class_api_parameters_comments(cls)))))
+    
+    operation_id = type_schema.get_type_name(cls)
+    description = inspect.getdoc(cls)
+    operation_id = name or operation_id
+    title = operation_id.split(".")[-1]
+    
+    return schema_utils.remove_empty(
+        {
+            "type": "object",
+            "title": title,
+            "description": description,
+            "required": [operation_id],
+            "additionalProperties": False,
+            "properties": {operation_id: args},
+            "x-returntype": schema_utils.merge(
+                {"description": type_schema.get_type_name(cls)},
+                type_schema.make_type_schema(cls))
+        })
 
-
-def get_class_api(cls):
+def get_class_api(cls, name=None):
     api = getattr(cls, "api_type", "properties")
     if api == "properties":
-        return get_class_properties_api(cls)
+        return get_class_properties_api(cls, name=name)
     else:
-        return function_api.get_function_api(cls.__init__, name=type_schema.get_type_name(cls))
+        return function_api.get_function_api(cls.__init__, name=name or type_schema.get_type_name(cls))

@@ -6,6 +6,7 @@ import types
 import importlib.metadata
 import copy
 import sys
+import warnings
 from . import type_schema
 from . import value_schema
 from . import schema_utils

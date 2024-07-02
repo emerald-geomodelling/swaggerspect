@@ -56,7 +56,7 @@ def make_type_schema(*typenames, hasdefault=None):
             if isinstance(typename, typing._LiteralGenericAlias):
                 schema["enum"] = list(typing.get_args(typename))
                 typename = get_type_name(type(schema["enum"][0]))
-            elif isinstance(typename, types.UnionType):
+            elif isinstance(typename, (types.UnionType, typing._UnionGenericAlias)):
                 schema["anyOf"] = [make_type_schema(arg) for arg in typing.get_args(typename)]
                 typename = "types.UnionType"
             else:

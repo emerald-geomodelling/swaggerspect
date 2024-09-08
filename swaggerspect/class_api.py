@@ -6,13 +6,14 @@ import types
 import importlib.metadata
 import copy
 import sys
+import collections
 from . import type_schema
 from . import value_schema
 from . import schema_utils
 from . import function_api
 
 def _get_class_property_comments(cls):
-    propdocs = {}
+    propdocs = collections.OrderedDict()
     for base in cls.__bases__:
         if base is not object:
             propdocs.update(_get_class_property_comments(base))
@@ -37,24 +38,36 @@ def _get_class_property_comments(cls):
     return propdocs
 
 def get_class_api_parameters_comments(cls):
-    return {"properties":
-            {n: {"description": v}
-             for n, v in _get_class_property_comments(cls).items()}}
-
+    propdocs = _get_class_property_comments(cls)
+    if not len(propdocs):
+        return {}
+    return {
+        "propertyOrder": [n for n, v in propdocs.items()],
+        "properties": {
+            n: {"description": v}
+            for n, v in propdocs.items()}}
+        
 def get_class_api_parameters_inspect(cls):
-    return {"properties":
-            {n: ({} if v is None
-                 else schema_utils.merge(
-                         type_schema.make_type_schema(
-                             type_schema.typeof(v), hasdefault=v),
-                         value_schema.make_value_schema(v)))
-             for n, v in inspect.getmembers(cls)
-             if (not n.startswith('__')
-                 and not inspect.ismethod(v)
-                 and not inspect.isfunction(v)
-                 and not inspect.isdatadescriptor(v))}}
-            
+    # NOTE: Parameters that do not have a default value will not be included here
+    members = inspect.getmembers(cls)
+    if not len(members):
+        return {}
+    return {
+        "propertyOrder": [n for n, v in members],
+        "properties":
+        {n: ({} if v is None
+             else schema_utils.merge(
+                     type_schema.make_type_schema(
+                         type_schema.typeof(v), hasdefault=v),
+                     value_schema.make_value_schema(v)))
+         for n, v in members
+         if (not n.startswith('__')
+             and not inspect.ismethod(v)
+             and not inspect.isfunction(v)
+             and not inspect.isdatadescriptor(v))}}
+
 def get_class_api_parameters_typing(cls):
+    # NOTE: Typing hints aren't ordered, so we can't generate a propertyOrder here
     return {"properties":
             {k: type_schema.make_type_schema(t)
              for k, t in typing.get_type_hints(

@@ -13,6 +13,7 @@ from . import schema_utils
 def get_function_api_parameters_inspect(fn):
     return schema_utils.remove_empty(
         {
+            "propertyOrder": list(inspect.signature(fn).parameters.keys()),
             "properties": {
                 k: schema_utils.merge(
                     type_schema.make_type_schema(
@@ -30,12 +31,15 @@ def get_function_api_parameters_comments(fn):
     if docs is None: return []
     docast = numpydoc.docscrape.NumpyDocString(docs)
     
-    return {"properties":
-            {p.name: schema_utils.merge(
+    return {
+         # propertyOrder will never be used, as merge() will prefer the one from inspect, included for completeness
+        "propertyOrder": [p.name for p in docast["Parameters"]],
+        "properties": {
+            p.name: schema_utils.merge(
                 {"description": "\n".join(p.desc)},
                 type_schema.make_type_schema(p.type))
-             for p in docast["Parameters"]}}
-    
+            for p in docast["Parameters"]}}
+
 def get_function_api(fn, name = None):
     args = schema_utils.remove_hidden(
         schema_utils.merge(

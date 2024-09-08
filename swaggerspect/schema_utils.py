@@ -20,4 +20,6 @@ def remove_hidden(api):
         key: value
         for key, value in api["properties"].items()
         if not value.get("hide", False)}
+    if "propertyOrder" in api:
+        api["propertyOrder"] = [prop for prop in api["propertyOrder"] if prop in api["properties"]]
     return api

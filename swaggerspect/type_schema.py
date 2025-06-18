@@ -24,7 +24,8 @@ typemap = {
     'list': {'type':'array'},
     'tuple': {'type':'array'},
     'dict': {'type':'object'},
-    'pydantic_core._pydantic_core.Url': {"type": "string", "format": "url"}
+    'pydantic.networks.AnyUrl': {"type": "string", "format": "url"}, # Modern pydantic
+    'pydantic_core._pydantic_core.Url': {"type": "string", "format": "url"} # pydantic_core <= 2.23.3 
 }
 
 def typeof(v):
